@@ -44,6 +44,7 @@ class Optimizer(ABC):
         self.inflate_prior = kwargs.get('inflate_prior', 1)
         self.input_noise = kwargs.get('input_noise', 0.0)
         #self.prior_mean, self.prior_var = self.prior_generator(keras_model, prior_mean, prior_var, verbose=True)
+        # 先验、后验都调用prior_generator
         self.prior_mean, self.prior_var = self.prior_generator(prior_mean, prior_var)
         self.posterior_mean, self.posterior_var = self.prior_generator(prior_mean, prior_var)
         #self.posterior_mean = copy.deepcopy(self.prior_mean)
@@ -79,7 +80,7 @@ class Optimizer(ABC):
     @abstractmethod
     def train(self, X_train, y_train, X_test=None, y_test=None, **kwargs):
         self.N = len(X_train)
-        train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(100).batch(self.batch_size)
+        train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(100).batch(self.batch_size)  # from_tensor_slices: 切分传入Tensor的第一个维度，生成相应的dataset
         test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(self.batch_size)
 
         if(self.robust_linear):
@@ -177,6 +178,11 @@ class Optimizer(ABC):
                                                     scale=self.posterior_var[i]))
         return sampled_weights
 
+    """
+    根据模型每一层的形状生成权重w和偏置b的先验均值分布
+    权重w：0
+    偏置b：std = math.sqrt(self.inflate_prior/(nin)) 
+    """
     def _gen_implicit_prior(self):
         print("BayesKeras: Using implicit prior")
         prior_mean = []
@@ -191,12 +197,14 @@ class Optimizer(ABC):
                         nin*=sha[i]
                 else:
                     nin = sha[0]
+                # 标准差
                 std = math.sqrt(self.inflate_prior/(nin))
                 print(sha, std)
                 mean_w = tf.zeros(sha)
                 var_w = tf.ones(sha) * std
                 mean_b = tf.zeros(b_sha)
                 var_b = tf.ones(b_sha) * std
+                # 分别加入权重w和偏置b的先验均值分布
                 prior_mean.append(mean_w); prior_mean.append(mean_b)
                 prior_var.append(var_w); prior_var.append(var_b)
             except:

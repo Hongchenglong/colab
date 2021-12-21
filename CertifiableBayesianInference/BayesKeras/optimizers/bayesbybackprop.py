@@ -4,6 +4,8 @@
 import os
 import math
 import logging
+import sys
+
 import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
@@ -35,7 +37,7 @@ class BayesByBackprop(optimizer.Optimizer):
 
 
         # Now we get into the BayesByBackprop specific enrichments to the class
-       
+        # 计算后验方差
         # Post process our variances to all be stds:
         for i in range(len(self.posterior_var)):
             self.posterior_var[i] = tf.math.log(tf.math.exp(self.posterior_var[i])-1)

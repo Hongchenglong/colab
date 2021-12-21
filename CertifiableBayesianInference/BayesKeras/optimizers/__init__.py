@@ -1,4 +1,4 @@
-#from optimizer import Optimizer
+# from optimizer import Optimizer
 from .bayesbybackprop import BayesByBackprop
 from .noisyadam import NoisyAdam
 from .blrvi import VariationalOnlineGuassNewton

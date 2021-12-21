@@ -135,6 +135,7 @@ def _PGD(model, inp, loss_fn, eps, direc=-1, step=0.1, num_steps=15, num_models=
     inp_copy = copy.deepcopy(inp)
     
     if(type(direc) == int):
+        # squeeze 函数：从数组的形状中删除单维度条目，即把shape中为1的维度去掉
         direc = np.squeeze(model.predict(inp))
         try:
             direc = np.argmax(direc, axis=1)
@@ -143,8 +144,8 @@ def _PGD(model, inp, loss_fn, eps, direc=-1, step=0.1, num_steps=15, num_models=
 
     adv = np.asarray(inp)
     maxi = adv + eps; mini = adv - eps
-    adv = adv + ((eps/10) * np.sign(np.random.normal(0.0, 1.0, size=adv.shape)))
-    adv = np.clip(adv, 0.0, 1.0)
+    adv = adv + ((eps/10) * np.sign(np.random.normal(0.0, 1.0, size=adv.shape))) # The sign function returns -1 if x < 0, 0 if x==0, 1 if x > 0. nan is returned for nan inputs.
+    adv = np.clip(adv, 0.0, 1.0) # Clip (limit) the values in an array.
     #print("PERFORMING PGD")
     for j in range(num_steps+1):
         if(order == 1):
