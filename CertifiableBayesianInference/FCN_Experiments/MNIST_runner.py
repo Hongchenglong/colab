@@ -16,13 +16,13 @@ import tensorflow as tf
 from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 
-dict = {'eps': 0.11, 'lam': 0.25, 'rob': 2, 'opt': 'BBB', 'gpu': '1'}
+arg = {'eps': 0.11, 'lam': 0.25, 'rob': 2, 'opt': 'BBB', 'gpu': '1'}
 
-eps = dict['eps']
-lam = dict['lam']
-rob = dict['rob']
-optim = dict['opt']
-gpu = dict['gpu']
+eps = arg['eps']
+lam = arg['lam']
+rob = arg['rob']
+optim = arg['opt']
+gpu = arg['gpu']
 os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
 # 划分训练集，测试集
