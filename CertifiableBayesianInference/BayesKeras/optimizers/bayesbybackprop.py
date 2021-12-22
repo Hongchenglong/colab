@@ -37,8 +37,8 @@ class BayesByBackprop(optimizer.Optimizer):
 
 
         # Now we get into the BayesByBackprop specific enrichments to the class
-        # 计算后验方差
         # Post process our variances to all be stds:
+        print("计算后验方差")
         for i in range(len(self.posterior_var)):
             self.posterior_var[i] = tf.math.log(tf.math.exp(self.posterior_var[i])-1)
         self.kl_weight = kwargs.get('kl_weight', 1.0)              
@@ -46,6 +46,9 @@ class BayesByBackprop(optimizer.Optimizer):
         print("BayesKeras: Using passed loss_fn as the data likelihood in the KL loss")
         
         return self
+
+    def train(self, X_train, y_train, X_test=None, y_test=None):
+        super().train(X_train, y_train, X_test, y_test)
 
     def step(self, features, labels, lrate):
         """
@@ -90,7 +93,6 @@ class BayesByBackprop(optimizer.Optimizer):
                                                       self.posterior_mean, self.posterior_var, 
                                                       self.loss_func, self.kl_weight, 
                                                       worst_case, self.robust_lambda)
-            
             elif(int(self.robust_train) == 2):
                 features_adv = analyzers.PGD(self, features, self.attack_loss, eps=self.epsilon, num_models=-1)
                 # Get the probabilities
@@ -113,7 +115,6 @@ class BayesByBackprop(optimizer.Optimizer):
                 one_hot_cls = tf.one_hot(labels, depth=10)
                 output = tf.math.reduce_max((self.robust_lambda*(predictions*one_hot_cls))  + ((1-self.robust_lambda)*(worst_case*one_hot_cls)), axis=1)
                 loss = self.loss_func(labels, predictions)
-
             elif(int(self.robust_train) == 5):
                 output = tf.zeros(predictions.shape)
                 self.epsilon = max(0.0001, self.epsilon)
@@ -134,7 +135,6 @@ class BayesByBackprop(optimizer.Optimizer):
                                                self.prior_mean, self.prior_var, 
                                                self.posterior_mean, self.posterior_var, 
                                                self.loss_func, self.kl_weight)
-
             elif(int(self.robust_train) == 6):
                 output = tf.zeros(predictions.shape)
                 self.epsilon = max(0.0001, self.epsilon)
@@ -187,10 +187,6 @@ class BayesByBackprop(optimizer.Optimizer):
         self.posterior_mean = new_posti_mean
         self.posterior_var = new_posti_var
         return new_posti_mean, new_posti_var
-
-    
-    def train(self, X_train, y_train, X_test=None, y_test=None):
-        super().train(X_train, y_train, X_test, y_test)
 
     def sample(self):
         sampled_weights = []
