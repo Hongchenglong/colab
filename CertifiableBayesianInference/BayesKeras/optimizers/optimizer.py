@@ -32,12 +32,12 @@ class Optimizer(ABC):
             "This optimizer does not have a default compilation method. Please make sure to call the correct .compile method before use.")
 
     @abstractmethod
-    def compile(self, keras_model, loss_fn, batch_size, learning_rate, decay,
+    def compile(self, keras_model, bnn_layer, loss_fn, batch_size, learning_rate, decay,
                 epochs, prior_mean, prior_var, **kwargs):
         self.model = keras_model
         self.batch_size = batch_size
         self.learning_rate = learning_rate
-        self.decay = decay
+        self.decay = decay  # 衰退
         self.epochs = epochs
         self.loss_func = loss_fn
 
@@ -56,8 +56,7 @@ class Optimizer(ABC):
         self.train_loss = tf.keras.metrics.Mean(name="train_loss")
         self.valid_loss = tf.keras.metrics.Mean(name="valid_loss")
 
-        # Right now I only have one accessory metric. Will come back and add 
-        # many later. 
+        # Right now I only have one accessory metric. Will come back and add many later.
         self.train_metric = kwargs.get('metric', tf.keras.metrics.SparseCategoricalAccuracy(name="train_acc"))
         self.valid_metric = kwargs.get('metric', tf.keras.metrics.SparseCategoricalAccuracy(name="valid_acc"))
         self.extra_metric = kwargs.get('metric', tf.keras.metrics.SparseCategoricalAccuracy(name="extra_acc"))
@@ -84,6 +83,7 @@ class Optimizer(ABC):
     @abstractmethod
     def train(self, X_train, y_train, X_test=None, y_test=None, **kwargs):
         self.N = len(X_train)
+        # 合并训练集和标签
         train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train)).shuffle(100).batch(
             self.batch_size)  # from_tensor_slices: 切分传入Tensor的第一个维度，生成相应的dataset
         test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test)).batch(self.batch_size)
@@ -100,9 +100,11 @@ class Optimizer(ABC):
 
             # Run the model through train and test sets respectively
             ################################################################
+            # 用xx方法在训练集上进行采样，获取后验和后验方差
             for (features, labels) in tqdm(train_ds):
-                features += np.random.normal(loc=0.0, scale=self.input_noise, size=features.shape)
+                features += np.random.normal(loc=0.0, scale=self.input_noise, size=features.shape)  # 给特征加入噪声
                 self.posterior, self.posterior_var = self.step(features, labels, lrate)
+            # 在测试集上验证模型
             for test_features, test_labels in test_ds:
                 self.model_validate(test_features, test_labels)
             ################################################################
@@ -205,9 +207,9 @@ class Optimizer(ABC):
                         nin *= sha[i]
                 else:
                     nin = sha[0]
-                # 标准差
+                # 标准
                 std = math.sqrt(self.inflate_prior / (nin))
-                print(sha, std)
+                print("sha: %s, std: %s" % (sha, std))
                 mean_w = tf.zeros(sha)
                 var_w = tf.ones(sha) * std
                 mean_b = tf.zeros(b_sha)

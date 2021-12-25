@@ -16,7 +16,7 @@ import tensorflow as tf
 from tensorflow.keras.models import *
 from tensorflow.keras.layers import *
 
-arg = {'eps': 0.11, 'lam': 0.25, 'rob': 1, 'opt': 'BBB', 'gpu': '1'}
+arg = {'eps': 0.11, 'lam': 0.25, 'rob': 0, 'opt': 'BBB', 'gpu': '-1'}
 
 eps = arg['eps']
 lam = arg['lam']
@@ -29,19 +29,25 @@ os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 (X_train, y_train), (X_test, y_test) = tf.keras.datasets.mnist.load_data()
 X_train = X_train / 255.
 X_test = X_test / 255.
-X_train = X_train.astype("float32").reshape(-1, 28 * 28)
-X_test = X_test.astype("float32").reshape(-1, 28 * 28)
+# X_train = X_train.astype("float32").reshape(-1, 28 * 28)
+# X_test = X_test.astype("float32").reshape(-1, 28 * 28)
 
 # X_train = X_train[0:10000]
 # y_train = y_train[0:10000]
 
-# 构建Sequential模型
-model = Sequential()
-# 构建Dense隐藏层并添加到模型中
-# 添加具有512个神经元的Dense隐藏层，使用relu激活函数
-model.add(Dense(512, activation="relu", input_shape=(None, 28 * 28)))
-# 添加具有10个神经元的Dense隐藏层，使用softmax激活函数
-model.add(Dense(10, activation="softmax"))
+# # 构建Sequential模型
+# model = Sequential()
+# # 构建Dense隐藏层并添加到模型中
+# # 添加具有512个神经元的Dense隐藏层，使用relu激活函数
+# model.add(Dense(512, activation="relu", input_shape=(None, 28 * 28)))
+# # 添加具有10个神经元的Dense隐藏层，使用softmax激活函数
+# model.add(Dense(10, activation="softmax"))
+
+model = tf.keras.models.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(512, activation="relu"),
+    tf.keras.layers.Dense(10, activation="softmax")
+])
 
 model.summary()
 
@@ -93,7 +99,8 @@ if (rob == 0):
 elif (rob != 0):
     loss = BayesKeras.optimizers.losses.robust_crossentropy_loss
 
-bayes_model = opt.compile(model, loss_fn=loss, learning_rate=learning_rate, epochs=20,
+bayes_model = opt.compile(model, dnn_layer=1, epochs=1,
+                          loss_fn=loss, learning_rate=learning_rate,
                           batch_size=128, linear_schedule=True,
                           decay=decay, robust_train=rob, inflate_prior=inf,
                           burn_in=3, steps=25, b_steps=20, epsilon=eps, rob_lam=lam)  # , preload="SGD_FCN_Posterior_1")

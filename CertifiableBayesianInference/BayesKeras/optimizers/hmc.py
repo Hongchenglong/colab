@@ -38,7 +38,8 @@ class HamiltonianMonteCarlo(optimizer.Optimizer):
         self.m_burn = kwargs.get('b_m', 0.05)
         self.b_steps = kwargs.get('b_steps', 1)
         self.steps = int(kwargs.get('steps', 5))
-        print(type(self.posterior_mean))
+
+        print("type(self.posterior_mean)\n", type(self.posterior_mean))
         for i in range(len(self.posterior_mean)):
             print(type(self.posterior_mean[i]))
 
@@ -54,7 +55,7 @@ class HamiltonianMonteCarlo(optimizer.Optimizer):
         self.U_metric = tf.keras.metrics.Mean(name="U_metric")
         self.q = self.posterior_mean
         self.current_q = copy.deepcopy(self.q)
-        print(self.q)
+        print("q: ", self.q)
         self.m = kwargs.get('m', 0.1)  # 2.0 is optimal for normal training
         self.num_rets = [0]  # number of times each iterate in the chain has appeared
         self.iterate = 0
