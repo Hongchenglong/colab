@@ -32,7 +32,7 @@ class Optimizer(ABC):
             "This optimizer does not have a default compilation method. Please make sure to call the correct .compile method before use.")
 
     @abstractmethod
-    def compile(self, keras_model, bnn_layer, loss_fn, batch_size, learning_rate, decay,
+    def compile(self, keras_model, dnn_layer, loss_fn, batch_size, learning_rate, decay,
                 epochs, prior_mean, prior_var, **kwargs):
         self.model = keras_model
         self.batch_size = batch_size
@@ -48,8 +48,8 @@ class Optimizer(ABC):
         self.input_noise = kwargs.get('input_noise', 0.0)
         # self.prior_mean, self.prior_var = self.prior_generator(keras_model, prior_mean, prior_var, verbose=True)
         # 先验、后验都调用prior_generator
-        self.prior_mean, self.prior_var = self.prior_generator(prior_mean, prior_var)
-        self.posterior_mean, self.posterior_var = self.prior_generator(prior_mean, prior_var)
+        self.prior_mean, self.prior_var = self.prior_generator(prior_mean, prior_var, dnn_layer)
+        self.posterior_mean, self.posterior_var = self.prior_generator(prior_mean, prior_var, dnn_layer)
         # self.posterior_mean = copy.deepcopy(self.prior_mean)
         # self.posterior_var = copy.deepcopy(self.prior_var)
 
@@ -193,7 +193,7 @@ class Optimizer(ABC):
     偏置b：std = math.sqrt(self.inflate_prior/(nin)) 
     """
 
-    def _gen_implicit_prior(self):
+    def _gen_implicit_prior(self, dnn_layer):
         print("BayesKeras: Using implicit prior")
         prior_mean = []
         prior_var = []
@@ -207,6 +207,17 @@ class Optimizer(ABC):
                         nin *= sha[i]
                 else:
                     nin = sha[0]
+
+                # DNN的方差为0
+                if i <= dnn_layer:
+                    zeros_a = tf.zeros(sha)
+                    zeros_b = tf.zeros(b_sha)
+                    prior_mean.append(zeros_a)
+                    prior_mean.append(zeros_b)
+                    prior_var.append(zeros_a)
+                    prior_var.append(zeros_b)
+                    continue
+
                 # 标准
                 std = math.sqrt(self.inflate_prior / (nin))
                 print("sha: %s, std: %s" % (sha, std))
@@ -215,18 +226,18 @@ class Optimizer(ABC):
                 mean_b = tf.zeros(b_sha)
                 var_b = tf.ones(b_sha) * std
                 # 分别加入权重w和偏置b的先验均值分布
-                prior_mean.append(mean_w);
+                prior_mean.append(mean_w)
                 prior_mean.append(mean_b)
-                prior_var.append(var_w);
+                prior_var.append(var_w)
                 prior_var.append(var_b)
             except:
                 pass
         return prior_mean, prior_var
 
-    def prior_generator(self, means, vars):
+    def prior_generator(self, means, vars, dnn_layer):
         if (type(means) == int and type(vars) == int):
             if (means < 0 or vars < 0):
-                model_mean, model_var = self._gen_implicit_prior()
+                model_mean, model_var = self._gen_implicit_prior(dnn_layer)
                 # for i in range(len(model_var)):
                 #    model_var[i] = tf.math.log(tf.math.exp(self.model_var[i])-1)
                 return model_mean, model_var

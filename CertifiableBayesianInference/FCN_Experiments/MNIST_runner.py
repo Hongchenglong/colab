@@ -45,6 +45,8 @@ X_test = X_test / 255.
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Flatten(input_shape=(28, 28)),
+    # tf.keras.layers.Dense(1024, activation="relu"),
+    tf.keras.layers.Dense(784, activation="relu"),
     tf.keras.layers.Dense(512, activation="relu"),
     tf.keras.layers.Dense(10, activation="softmax")
 ])
@@ -99,7 +101,9 @@ if (rob == 0):
 elif (rob != 0):
     loss = BayesKeras.optimizers.losses.robust_crossentropy_loss
 
-bayes_model = opt.compile(model, dnn_layer=1, epochs=1,
+dnn_layer = 1
+epochs = 20
+bayes_model = opt.compile(model, dnn_layer=dnn_layer, epochs=epochs,
                           loss_fn=loss, learning_rate=learning_rate,
                           batch_size=128, linear_schedule=True,
                           decay=decay, robust_train=rob, inflate_prior=inf,
@@ -109,4 +113,7 @@ bayes_model = opt.compile(model, dnn_layer=1, epochs=1,
 bayes_model.train(X_train, y_train, X_test, y_test)
 
 # Save your approxiate Bayesian posterior
-bayes_model.save("%s_FCN_Posterior_%s" % (optim, rob))
+path = "%s_FCN_Posterior_%s_epochs%s_dnnLayer%s" % (optim, rob, epochs, dnn_layer)
+bayes_model.save(path)
+print(path + "训练完成")
+

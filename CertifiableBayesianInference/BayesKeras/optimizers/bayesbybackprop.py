@@ -1,4 +1,4 @@
-#Author: Matthew Wicker
+# Author: Matthew Wicker
 # Impliments the BayesByBackprop optimizer for BayesKeras
 
 import os
@@ -15,7 +15,7 @@ from tensorflow.keras.layers import *
 from tqdm import tqdm
 from tqdm import trange
 
-from BayesKeras.optimizers import optimizer 
+from BayesKeras.optimizers import optimizer
 from BayesKeras.optimizers import losses
 from BayesKeras import analyzers
 from abc import ABC, abstractmethod
@@ -30,9 +30,9 @@ class BayesByBackprop(optimizer.Optimizer):
 
     # I set default params for each sub-optimizer but none for the super class for
     # pretty obvious reasons
-    def compile(self, keras_model, loss_fn, batch_size=64, learning_rate=0.15, decay=0.0,
+    def compile(self, keras_model, dnn_layer=0, loss_fn=tf.keras.losses.SparseCategoricalCrossentropy(), batch_size=64, learning_rate=0.15, decay=0.0,
                       epochs=10, prior_mean=-1, prior_var=-1, **kwargs):
-        super().compile(keras_model, loss_fn, batch_size, learning_rate, decay,
+        super().compile(keras_model, dnn_layer, loss_fn, batch_size, learning_rate, decay,
                       epochs, prior_mean, prior_var, **kwargs)
 
 
@@ -40,11 +40,12 @@ class BayesByBackprop(optimizer.Optimizer):
         # Post process our variances to all be stds:
         print("计算后验方差")
         for i in range(len(self.posterior_var)):
-            self.posterior_var[i] = tf.math.log(tf.math.exp(self.posterior_var[i])-1)
-        self.kl_weight = kwargs.get('kl_weight', 1.0)              
-        self.kl_component = tf.keras.metrics.Mean(name="kl_comp")  
+            if i >= 2*dnn_layer:
+                self.posterior_var[i] = tf.math.log(tf.math.exp(self.posterior_var[i])-1)
+        self.kl_weight = kwargs.get('kl_weight', 1.0)
+        self.kl_component = tf.keras.metrics.Mean(name="kl_comp")
         print("BayesKeras: Using passed loss_fn as the data likelihood in the KL loss")
-        
+
         return self
 
     def train(self, X_train, y_train, X_test=None, y_test=None):
@@ -56,7 +57,7 @@ class BayesByBackprop(optimizer.Optimizer):
         """
         init_weights = []; noise_used = []
         for i in range(len(self.posterior_mean)):
-            noise = tf.random.normal(shape=self.posterior_var[i].shape, 
+            noise = tf.random.normal(shape=self.posterior_var[i].shape,
                                      mean=tf.zeros(self.posterior_var[i].shape), stddev=1.0)
             var_add = tf.multiply(softplus(self.posterior_var[i]), noise)
             #var_add = tf.multiply(self.posterior_mean[i], noise)
@@ -67,15 +68,15 @@ class BayesByBackprop(optimizer.Optimizer):
 
         # Define the GradientTape context
         with tf.GradientTape(persistent=True) as tape:   # Below we add an extra variable for IBP
-            tape.watch(self.posterior_mean) 
+            tape.watch(self.posterior_mean)
             tape.watch(self.posterior_var); #tape.watch(init_weights)
             predictions = self.model(features)
 
             if(self.robust_train == 0):
                 worst_case = predictions # cheap hack lol
                 loss, kl_comp = losses.KL_Loss(labels, predictions, self.model.trainable_variables,
-                                               self.prior_mean, self.prior_var, 
-                                               self.posterior_mean, self.posterior_var, 
+                                               self.prior_mean, self.prior_var,
+                                               self.posterior_mean, self.posterior_var,
                                                self.loss_func, self.kl_weight)
             elif(int(self.robust_train) == 1):
                 # Get the probabilities
@@ -89,9 +90,9 @@ class BayesByBackprop(optimizer.Optimizer):
                 worst_case = self.model.layers[-1].activation(worst_case)
                 # Calculate the loss
                 loss, kl_comp = losses.robust_KL_Loss(labels, predictions, self.model.trainable_variables,
-	       		                              self.prior_mean, self.prior_var, 
-                                                      self.posterior_mean, self.posterior_var, 
-                                                      self.loss_func, self.kl_weight, 
+	       		                              self.prior_mean, self.prior_var,
+                                                      self.posterior_mean, self.posterior_var,
+                                                      self.loss_func, self.kl_weight,
                                                       worst_case, self.robust_lambda)
             elif(int(self.robust_train) == 2):
                 features_adv = analyzers.PGD(self, features, self.attack_loss, eps=self.epsilon, num_models=-1)
@@ -132,8 +133,8 @@ class BayesByBackprop(optimizer.Optimizer):
                     output += (1.0/self.loss_monte_carlo) * worst_case
 
                 loss, kl_comp = losses.KL_Loss(labels, output, self.model.trainable_variables,
-                                               self.prior_mean, self.prior_var, 
-                                               self.posterior_mean, self.posterior_var, 
+                                               self.prior_mean, self.prior_var,
+                                               self.posterior_mean, self.posterior_var,
                                                self.loss_func, self.kl_weight)
             elif(int(self.robust_train) == 6):
                 output = tf.zeros(predictions.shape)
@@ -146,15 +147,15 @@ class BayesByBackprop(optimizer.Optimizer):
                     worst_case = self.model(features_adv)
                     output += (1.0/self.loss_monte_carlo) * worst_case
                 loss, kl_comp = losses.KL_Loss(labels, output, self.model.trainable_variables,
-                                               self.prior_mean, self.prior_var, 
-                                               self.posterior_mean, self.posterior_var, 
+                                               self.prior_mean, self.prior_var,
+                                               self.posterior_mean, self.posterior_var,
                                                self.loss_func, self.kl_weight)
         # Get the gradients
         weight_gradient = tape.gradient(loss, self.model.trainable_variables)
         mean_gradient = tape.gradient(loss, self.posterior_mean)
         var_gradient = tape.gradient(loss, self.posterior_var)
         #init_gradient = tape.gradient(loss, init_weights)
-        
+
         posti_mean_grad = []
         posti_var_grad = []
         # !*! - Make the weight and init gradients the same variable and retest
@@ -210,4 +211,4 @@ class BayesByBackprop(optimizer.Optimizer):
             json_file.write(model_json)
 
 
-    
+
